@@ -1,12 +1,12 @@
 from django.shortcuts import render
-from gestionOrdonnancesapp.models import User,Role
+from gestionOrdonnancesapp.models import User,Role, Ordannance, DossierMedicale, Allergie
 from rest_framework.parsers import JSONParser
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate, login
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from gestionOrdonnancesapp.serializers import UserSerializer, CustomTokenObtainPairSerializer,RoleSerializer
+from gestionOrdonnancesapp.serializers import AllergieSerializer, UserSerializer, CustomTokenObtainPairSerializer,RoleSerializer
 from rest_framework_simplejwt.tokens import AccessToken
 from django.contrib.auth.hashers import make_password, check_password
 from rest_framework.decorators import api_view
@@ -151,4 +151,39 @@ class LoginViews(APIView):
         return Response({'error': 'User not found'}, status=404)
       user.delete()
       return Response("user deleted succesfuly",status=200)
-
+class AllergieView(APIView):
+    permission_classes=[AllowAny]
+    def post(self, request):
+        print("Requête POST reçue avec les données :", request.data)  
+        serializer=AllergieSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def put(self,request,id):
+        allergie=get_object_or_404(Allergie,id=id)
+        serializer=AllergieSerializer(allergie,data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def delete(self,request,id):
+        try:
+            allergie = Allergie.objects.get(id=id)
+        except Allergie.DoesNotExist:
+            return Response({'error':'allergie not found'}, status=404)
+        allergie.delete()
+        return Response("allergie deleted succesfuly",status=200)
+    def get(self, request):
+        id=request.query_params.get('id')
+        if id is not None:
+            try:
+                allergie=Allergie.objects.get(id=id)
+            except Allergie.DoesNotExist:
+                return Response({'error': 'Allergie not found'}, status=status.HTTP_404_NOT_FOUND)
+            serializer=AllergieSerializer(allergie)
+            return Response({'allergie':serializer.data},status=status.HTTP_200_OK)
+        else:
+            allergies=Allergie.objects.all()
+            serializer=AllergieSerializer(allergies, many=True)
+            return Response({'allergies':serializer.data},status=status.HTTP_200_OK)
