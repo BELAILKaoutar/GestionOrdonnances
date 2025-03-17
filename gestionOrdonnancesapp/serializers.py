@@ -31,7 +31,7 @@ class OrdonnanceSerializer(serializers.ModelSerializer):
         model=Ordannance
         fields = '__all__'
 class DossierMedicaleSerializer(serializers.ModelSerializer):
-    user=serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    patient=serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     allergies=serializers.PrimaryKeyRelatedField(queryset=Allergie.objects.all(), many=True)
     class Meta:
         model=DossierMedicale
