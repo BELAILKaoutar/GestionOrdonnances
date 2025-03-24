@@ -185,8 +185,7 @@ class DossierMedicaleView(APIView):
         dossier=get_object_or_404(DossierMedicale,id=id)
         dossier.delete()
         return Response({"message": "Dossier médical supprimé avec succès"}, status=status.HTTP_200_OK)
-    def get(self,request ):
-        id=request.query_params.get('id')
+    def get(self,request, id:None ):
         if id is not None:
             try:
                 dossier=DossierMedicale.objects.get(id=id)
@@ -228,8 +227,7 @@ class AllergieView(APIView):
             return Response({'error':'allergie not found'}, status=404)
         allergie.delete()
         return Response("allergie deleted succesfuly",status=200)
-    def get(self, request):
-        id=request.query_params.get('id')
+    def get(self, request, id=None):
         if id is not None:
             try:
                 allergie=Allergie.objects.get(id=id)
