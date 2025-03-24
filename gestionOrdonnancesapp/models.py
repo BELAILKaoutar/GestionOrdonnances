@@ -10,7 +10,7 @@ class Role(models.Model):
     ]
     id = models.AutoField(primary_key=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
-BloodTypes=[("A+","A+"),("A-","A-"),("B+","B+"),("B-","B-"),("O+","O+"),("O-","O-"),("AB+","AB+"),("AB-","AB-")]
+
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -55,6 +55,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         self.password = make_password(self.password)
         super().save(*args, **kwargs)
 
+BloodTypes=[("A+","A+"),("A-","A-"),("B+","B+"),("B-","B-"),("O+","O+"),("O-","O-"),("AB+","AB+"),("AB-","AB-")]
+
 class Allergie(models.Model):
     code=models.CharField(max_length=255, unique=True)
     nom=models.CharField(max_length=255) 
@@ -86,5 +88,27 @@ class DossierMedicale(models.Model):
     def __str__(self):
         return f"Dossier Médical de {getattr(self.patient, 'firstName', 'Inconnu')} {getattr(self.patient, 'lastName', 'Inconnu')}"
  
+class Effet(models.Model):
+    code = models.CharField(max_length=255, unique=True)
+    description = models.TextField()
+    gravite = models.CharField(max_length=100, choices=[
+        ('Légère', 'Légère'),
+        ('Modérée', 'Modérée'),
+        ('Sévère', 'Sévère')
+    ])
 
+    medicaments = models.ManyToManyField("Medicament", related_name="effets")
 
+    def __str__(self):
+        return f"{self.description} (Gravité : {self.gravite})"
+
+class Medicament(models.Model):
+    code = models.CharField(max_length=255, unique=True)
+    nom = models.CharField(max_length=255)  # Valeur par défaut
+    molecule_active = models.CharField(max_length=255)  # Valeur par défaut
+    description = models.TextField(blank=True, null=True)
+    laboratoire = models.CharField(max_length=255, blank=True, null=True)
+    date_expiration = models.DateField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.nom} ({self.molecule_active})"
