@@ -185,24 +185,29 @@ class DossierMedicaleView(APIView):
         dossier=get_object_or_404(DossierMedicale,id=id)
         dossier.delete()
         return Response({"message": "Dossier médical supprimé avec succès"}, status=status.HTTP_200_OK)
-    def get(self,request, id:None ):
-        if id is not None:
-            try:
-                dossier=DossierMedicale.objects.get(id=id)
-            except DossierMedicale.DoesNotExist:
-                return Response({'error': 'Dossier médical not trouve'}, status=404)
-        
-            serializer=DossierMedicaleSerializer(dossier)
-            data=serializer.data
-            data['allergies']=AllergieSerializer(dossier.allergies.all(),many=True).data
-            return Response({'dossier': data}, status=status.HTTP_200_OK)
-        else:
-            dossiers=DossierMedicale.objects.all()
-            serializer=DossierMedicaleSerializer(dossiers,many=True)
-            dossiers_data=serializer.data
-            for dossier, data in zip(dossiers,dossiers_data):
-                data['allergies']=AllergieSerializer(dossier.allergies.all(),many=True).data
-            return Response({'dossiers': dossiers_data}, status=status.HTTP_200_OK)
+    
+    def get(self, request, id=None):
+      if id is not None:
+        try:
+            dossier = DossierMedicale.objects.get(id=id)
+        except DossierMedicale.DoesNotExist:
+            return Response({'error': 'Dossier médical non trouvé'}, status=404)
+
+        serializer = DossierMedicaleSerializer(dossier)
+        data = dict(serializer.data)  
+        data['allergies'] = AllergieSerializer(dossier.allergies.all(), many=True).data
+
+        return Response({'dossier': data}, status=status.HTTP_200_OK)
+      else:
+        dossiers = DossierMedicale.objects.all()
+        serializer = DossierMedicaleSerializer(dossiers, many=True)
+        dossiers_data = list(serializer.data)  
+
+        for dossier, data in zip(dossiers, dossiers_data):
+            data['allergies'] = AllergieSerializer(dossier.allergies.all(), many=True).data
+
+        return Response({'dossiers': dossiers_data}, status=status.HTTP_200_OK)
+
         
 class AllergieView(APIView):
     permission_classes=[AllowAny]
