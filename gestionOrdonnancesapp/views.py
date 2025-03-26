@@ -16,6 +16,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import JsonResponse
+from django.http import JsonResponse
+from .models import Medicament, Effet,  User, Medicament, DossierMedicale
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -183,25 +185,29 @@ class DossierMedicaleView(APIView):
         dossier=get_object_or_404(DossierMedicale,id=id)
         dossier.delete()
         return Response({"message": "Dossier médical supprimé avec succès"}, status=status.HTTP_200_OK)
-    def get(self,request ):
-        id=request.query_params.get('id')
-        if id is not None:
-            try:
-                dossier=DossierMedicale.objects.get(id=id)
-            except DossierMedicale.DoesNotExist:
-                return Response({'error': 'Dossier médical not trouve'}, status=404)
-        
-            serializer=DossierMedicaleSerializer(dossier)
-            data=serializer.data
-            data['allergies']=AllergieSerializer(dossier.allergies.all(),many=True).data
-            return Response({'dossier': data}, status=status.HTTP_200_OK)
-        else:
-            dossiers=DossierMedicale.objects.all()
-            serializer=DossierMedicaleSerializer(dossiers,many=True)
-            dossiers_data=serializer.data
-            for dossier, data in zip(dossiers,dossiers_data):
-                data['allergies']=AllergieSerializer(dossier.allergies.all(),many=True).data
-            return Response({'dossiers': dossiers_data}, status=status.HTTP_200_OK)
+    
+    def get(self, request, id=None):
+      if id is not None:
+        try:
+            dossier = DossierMedicale.objects.get(id=id)
+        except DossierMedicale.DoesNotExist:
+            return Response({'error': 'Dossier médical non trouvé'}, status=404)
+
+        serializer = DossierMedicaleSerializer(dossier)
+        data = dict(serializer.data)  
+        data['allergies'] = AllergieSerializer(dossier.allergies.all(), many=True).data
+
+        return Response({'dossier': data}, status=status.HTTP_200_OK)
+      else:
+        dossiers = DossierMedicale.objects.all()
+        serializer = DossierMedicaleSerializer(dossiers, many=True)
+        dossiers_data = list(serializer.data)  
+
+        for dossier, data in zip(dossiers, dossiers_data):
+            data['allergies'] = AllergieSerializer(dossier.allergies.all(), many=True).data
+
+        return Response({'dossiers': dossiers_data}, status=status.HTTP_200_OK)
+
         
 class AllergieView(APIView):
     permission_classes=[AllowAny]
@@ -226,8 +232,7 @@ class AllergieView(APIView):
             return Response({'error':'allergie not found'}, status=404)
         allergie.delete()
         return Response("allergie deleted succesfuly",status=200)
-    def get(self, request):
-        id=request.query_params.get('id')
+    def get(self, request, id=None):
         if id is not None:
             try:
                 allergie=Allergie.objects.get(id=id)
@@ -239,3 +244,47 @@ class AllergieView(APIView):
             allergies=Allergie.objects.all()
             serializer=AllergieSerializer(allergies, many=True)
             return Response({'allergies':serializer.data},status=status.HTTP_200_OK)
+
+
+class MedicamentInteractionView(APIView):
+    permission_classes=[AllowAny]
+    def get(self, request, medicament1_id, medicament2_id):
+        try:
+            medicament1 = get_object_or_404(Medicament, id=medicament1_id)
+            medicament2 = get_object_or_404(Medicament, id=medicament2_id)
+
+            effets_communs = Effet.objects.filter(medicaments=medicament1).filter(medicaments=medicament2)
+
+            if effets_communs.exists():
+                effets_list = [{"description": effet.description, "gravite": effet.gravite} for effet in effets_communs]
+                return Response({
+                    "status": "danger",
+                    "message": f"Interaction détectée entre {medicament1.nom} et {medicament2.nom}",
+                    "effets": effets_list
+                }, status=status.HTTP_200_OK)
+
+            return Response({"status": "ok", "message": "Pas d'interaction détectée"}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AllergyCheckView(APIView):
+    permission_classes=[AllowAny]
+    def get(self, request, user_id, medicament_id):
+        try:
+            user = get_object_or_404(User, id=user_id)
+            dossier = get_object_or_404(DossierMedicale, patient=user)
+            medicament = get_object_or_404(Medicament, id=medicament_id)
+
+            allergies = dossier.allergies.all()
+            for allergie in allergies:
+                if allergie.nom.lower() in medicament.molecule_active.lower():
+                    return Response({
+                        "status": "danger",
+                        "message": f"Allergie détectée : {allergie.nom} - Gravité : {allergie.gravite}"
+                    }, status=status.HTTP_200_OK)
+
+            return Response({"status": "ok", "message": "Pas d'allergie détectée"}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
