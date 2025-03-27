@@ -1,12 +1,12 @@
 from django.shortcuts import render
-from gestionOrdonnancesapp.models import User,Role, Ordannance, DossierMedicale, Allergie
+from gestionOrdonnancesapp.models import User,Role, Ordonnance, DossierMedicale, Allergie,MedicamentOrdonnance
 from rest_framework.parsers import JSONParser
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate, login
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from gestionOrdonnancesapp.serializers import AllergieSerializer, DossierMedicaleSerializer, UserSerializer, CustomTokenObtainPairSerializer,RoleSerializer
+from gestionOrdonnancesapp.serializers import AllergieSerializer, DossierMedicaleSerializer, UserSerializer, CustomTokenObtainPairSerializer,RoleSerializer,OrdonnanceSerializer,MedicamentOrdonnanceSerializer,MedicamentSerializer,EffetSerializer
 from rest_framework_simplejwt.tokens import AccessToken
 from django.contrib.auth.hashers import make_password, check_password
 from rest_framework.decorators import api_view
@@ -288,3 +288,194 @@ class AllergyCheckView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+class OrdonnanceView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        # Créer une nouvelle ordonnance
+        serializer = OrdonnanceSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request, id=None):
+        if id:
+            # Récupérer une ordonnance spécifique par son ID
+            ordonnance = get_object_or_404(Ordonnance, id=id)
+            serializer = OrdonnanceSerializer(ordonnance)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            # Récupérer toutes les ordonnances
+            ordonnances = Ordonnance.objects.all()
+            serializer = OrdonnanceSerializer(ordonnances, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, id):
+        # Mettre à jour une ordonnance
+        ordonnance = get_object_or_404(Ordonnance, id=id)
+        serializer = OrdonnanceSerializer(ordonnance, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, id):
+        # Supprimer une ordonnance
+        ordonnance = get_object_or_404(Ordonnance, id=id)
+        ordonnance.delete()
+        return Response({"message": "Ordonnance supprimée avec succès."}, status=status.HTTP_200_OK)
+
+
+# ---- EFFET VIEWS ----
+class EffetView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        # Créer un effet secondaire
+        serializer = EffetSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request, id=None):
+        # Si un ID est fourni, récupérer l'effet secondaire spécifique
+        if id is not None:
+            effet = get_object_or_404(Effet, id=id)
+            serializer = EffetSerializer(effet)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        # Sinon, récupérer tous les effets secondaires
+        effets = Effet.objects.all()
+        serializer = EffetSerializer(effets, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, id):
+        # Modifier un effet secondaire existant
+        effet = get_object_or_404(Effet, id=id)
+        serializer = EffetSerializer(effet, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, id):
+        # Supprimer un effet secondaire
+        effet = get_object_or_404(Effet, id=id)
+        effet.delete()
+        return Response({"message": "Effet secondaire supprimé avec succès"}, status=status.HTTP_200_OK)
+
+
+# ---- MEDICAMENT VIEWS ----
+class MedicamentView(APIView):
+    permission_classes = [AllowAny]
+
+    # Récupérer la liste de tous les médicaments ou un médicament spécifique par ID
+    def get(self, request, id=None):
+        if id:  # Si un ID est fourni, on récupère un médicament spécifique
+            try:
+                medicament = Medicament.objects.get(id=id)
+            except Medicament.DoesNotExist:
+                return Response({'error': 'Medicament not found'}, status=status.HTTP_404_NOT_FOUND)
+            serializer = MedicamentSerializer(medicament)
+            return Response({'medicament': serializer.data}, status=status.HTTP_200_OK)
+        
+        # Si aucun ID, on retourne tous les médicaments
+        medicaments = Medicament.objects.all()
+        serializer = MedicamentSerializer(medicaments, many=True)
+        return Response({'medicaments': serializer.data}, status=status.HTTP_200_OK)
+
+    # Ajouter un nouveau médicament (POST)
+    def post(self, request):
+        serializer = MedicamentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # Mettre à jour un médicament existant (PUT)
+    def put(self, request, id):
+        medicament = get_object_or_404(Medicament, id=id)
+        serializer = MedicamentSerializer(medicament, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # Supprimer un médicament (DELETE)
+    def delete(self, request, id):
+        try:
+            medicament = Medicament.objects.get(id=id)
+        except Medicament.DoesNotExist:
+            return Response({'error': 'Medicament not found'}, status=status.HTTP_404_NOT_FOUND)
+        medicament.delete()
+        return Response("Medicament deleted successfully", status=status.HTTP_200_OK)
+
+
+# ---- MEDICAMENTORDONNANCE VIEWS ----
+class MedicamentOrdonnanceView(APIView):
+    permission_classes = [AllowAny]
+
+    # Méthode POST pour créer un MedicamentOrdonnance
+    def post(self, request):
+        # Sérialisation des données envoyées
+        serializer = MedicamentOrdonnanceSerializer(data=request.data)
+        # Vérification de la validité des données
+        if serializer.is_valid():
+            # Sauvegarde dans la base de données
+            serializer.save()
+            # Retour d'une réponse avec le code 201 et les données créées
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        # Retour d'une erreur si les données sont invalides
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # Méthode PUT pour mettre à jour un MedicamentOrdonnance
+    def put(self, request, id):
+        # Récupération du MedicamentOrdonnance par son ID
+        medicament_ordonnance = get_object_or_404(MedicamentOrdonnance, id=id)
+        # Sérialisation avec les données envoyées (et autorisation de modification partielle)
+        serializer = MedicamentOrdonnanceSerializer(medicament_ordonnance, data=request.data, partial=True)
+        # Vérification de la validité des données
+        if serializer.is_valid():
+            # Sauvegarde des nouvelles données
+            serializer.save()
+            # Retour des données mises à jour avec le code 200
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        # Retour d'une erreur si les données sont invalides
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # Méthode DELETE pour supprimer un MedicamentOrdonnance
+    def delete(self, request, id):
+        try:
+            # Récupération du MedicamentOrdonnance par son ID
+            medicament_ordonnance = MedicamentOrdonnance.objects.get(id=id)
+        except MedicamentOrdonnance.DoesNotExist:
+            # Si l'objet n'existe pas, renvoyer une erreur 404
+            return Response({'error': 'MedicamentOrdonnance not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Suppression de l'objet
+        medicament_ordonnance.delete()
+        # Retourner une confirmation de suppression
+        return Response("MedicamentOrdonnance deleted successfully", status=status.HTTP_200_OK)
+
+    # Méthode GET pour récupérer des MedicamentOrdonnances
+    def get(self, request, id=None):
+        if id is not None:
+            try:
+                # Récupérer un MedicamentOrdonnance spécifique
+                medicament_ordonnance = MedicamentOrdonnance.objects.get(id=id)
+            except MedicamentOrdonnance.DoesNotExist:
+                # Si l'objet n'existe pas, retourner une erreur 404
+                return Response({'error': 'MedicamentOrdonnance not found'}, status=status.HTTP_404_NOT_FOUND)
+            # Sérialiser les données de l'objet récupéré
+            serializer = MedicamentOrdonnanceSerializer(medicament_ordonnance)
+            # Retourner l'objet avec le code 200
+            return Response({'medicament_ordonnance': serializer.data}, status=status.HTTP_200_OK)
+        else:
+            # Si aucun paramètre 'id' n'est donné, récupérer tous les MedicamentOrdonnances
+            medicament_ordonnances = MedicamentOrdonnance.objects.all()
+            # Sérialiser tous les objets
+            serializer = MedicamentOrdonnanceSerializer(medicament_ordonnances, many=True)
+            # Retourner tous les objets avec le code 200
+            return Response({'medicament_ordonnances': serializer.data}, status=status.HTTP_200_OK)
