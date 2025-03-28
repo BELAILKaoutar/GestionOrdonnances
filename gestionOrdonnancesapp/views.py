@@ -16,7 +16,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import JsonResponse
-
+import logging
+import qrcode
+from io import BytesIO
+from django.core.files.base import ContentFile
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 class LoginViews(APIView):
@@ -142,13 +145,11 @@ class LoginViews(APIView):
             return Response({
                     'users': response_data,
                 },200)
-
-    def delete(self, request, id=None):
-      user_id = request.query_params.get('id')
-      try:
-        user = User.objects.get(id=user_id)
-      except User.DoesNotExist:
-        return Response({'error': 'User not found'}, status=404)
-      user.delete()
-      return Response("user deleted succesfuly",status=200)
-
+    def delete(self, request, id):
+        try:
+            user = User.objects.get(id=id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        user.delete()
+        return Response({'message': 'User deleted successfully'}, status=status.HTTP_200_OK)
