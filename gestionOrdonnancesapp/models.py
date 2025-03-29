@@ -69,9 +69,9 @@ class Allergie(models.Model):
         return f"{self.nom} ({self.type}) - Gravité: {self.gravite}" 
 
    
-class Ordannance(models.Model):
-    code=models.CharField(max_length=255, unique=True)
-    dossierMedicale=models.ForeignKey("DossierMedicale",on_delete=models.CASCADE, related_name="ordonnances")
+class Ordonnance(models.Model):
+    code = models.CharField(max_length=255, unique=True)
+    dossierMedicale = models.ForeignKey("DossierMedicale", on_delete=models.CASCADE, related_name="ordonnances")
 
 class DossierMedicale(models.Model):
     code=models.CharField(max_length=255, unique=True)
@@ -87,28 +87,60 @@ class DossierMedicale(models.Model):
     miseAJour=models.DateTimeField(auto_now=True)
     def __str__(self):
         return f"Dossier Médical de {getattr(self.patient, 'firstName', 'Inconnu')} {getattr(self.patient, 'lastName', 'Inconnu')}"
- 
+    
 class Effet(models.Model):
     code = models.CharField(max_length=255, unique=True)
     description = models.TextField()
-    gravite = models.CharField(max_length=100, choices=[
-        ('Légère', 'Légère'),
-        ('Modérée', 'Modérée'),
-        ('Sévère', 'Sévère')
-    ])
-
-    medicaments = models.ManyToManyField("Medicament", related_name="effets")
+    gravite = models.CharField(max_length=100, choices=[('Légère', 'Légère'), ('Modérée', 'Modérée'), ('Sévère', 'Sévère')])
+    medicaments = models.ManyToManyField("Medicament", related_name="effets_secondaires")
 
     def __str__(self):
         return f"{self.description} (Gravité : {self.gravite})"
-
+ 
 class Medicament(models.Model):
+    VOIES_ADMINISTRATION = [
+        ("Orale", "Orale"),
+        ("Injectable", "Injectable"),
+        ("Topique", "Topique"),
+        ("Inhalée", "Inhalée"),
+        ("Sublinguale", "Sublinguale"),
+        ("Rectale", "Rectale"),
+    ]
+    
     code = models.CharField(max_length=255, unique=True)
-    nom = models.CharField(max_length=255)  # Valeur par défaut
-    molecule_active = models.CharField(max_length=255)  # Valeur par défaut
-    description = models.TextField(blank=True, null=True)
-    laboratoire = models.CharField(max_length=255, blank=True, null=True)
-    date_expiration = models.DateField(blank=True, null=True)
+    nom = models.CharField(max_length=255)
+    description = models.TextField(default="")  # Texte vide par défaut
+    prix = models.FloatField(default=0.0)  # Prix du médicament
+    disponibilite = models.BooleanField(default=True)  # Indique si le médicament est disponible ou non
+    voie_administration = models.CharField(
+        max_length=50,
+        choices=VOIES_ADMINISTRATION,
+        default="Orale"
+    )  # Mode d'administration avec choix prédéfinis
+    molecule_active = models.CharField(max_length=255, blank=True, null=True)  # Molécule active du médicament
+    duree_traitement = models.IntegerField(help_text="Durée du traitement en jours",
+    default=7)  # Durée du traitement
+
+    effets = models.ManyToManyField(Effet, blank=True, related_name="medicaments_relations")  # Effets secondaires du médicament
+    interactions = models.ManyToManyField(
+        "self",
+        blank=True,
+        symmetrical=False,
+        related_name="interactions_medicamenteuses"
+    )  # Médicaments avec lesquels il peut interagir
 
     def __str__(self):
-        return f"{self.nom} ({self.molecule_active})"
+        return f"Medicament: {self.nom} ({self.molecule_active}) - {self.voie_administration}"
+
+    
+class MedicamentOrdonnance(models.Model):
+    ordonnance = models.ForeignKey(Ordonnance, on_delete=models.CASCADE, related_name="medicaments_prescrits")
+    medicament = models.ForeignKey(Medicament, on_delete=models.CASCADE, related_name="ordonnances_medicamenteuses")
+    posologie = models.TextField()  # Ex: "2 comprimés par jour pendant 5 jours"
+
+    def __str__(self):
+        return f"{self.medicament.nom} (Ordonnance {self.ordonnance.code})"    
+    
+
+
+

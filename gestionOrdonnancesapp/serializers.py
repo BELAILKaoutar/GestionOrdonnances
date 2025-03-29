@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from gestionOrdonnancesapp.models import User, Role, Ordannance, Allergie, DossierMedicale
+from gestionOrdonnancesapp.models import User, Role, Ordonnance, Allergie, DossierMedicale,Effet, Medicament, MedicamentOrdonnance
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 #from gestion.models import Patient
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -26,13 +26,28 @@ class AllergieSerializer(serializers.ModelSerializer):
         model=Allergie
         fields = '__all__'
 class OrdonnanceSerializer(serializers.ModelSerializer):
-    dossierMedicale=serializers.PrimaryKeyRelatedField(queryset=DossierMedicale.objects.all())
     class Meta:
-        model=Ordannance
-        fields = '__all__'
+        model = Ordonnance
+        fields = ['id', 'code', 'dossierMedicale']
+        
 class DossierMedicaleSerializer(serializers.ModelSerializer):
     patient=serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     allergies=serializers.PrimaryKeyRelatedField(queryset=Allergie.objects.all(), many=True)
     class Meta:
         model=DossierMedicale
         fields = '__all__'
+
+class EffetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Effet
+        fields = ['id', 'code', 'description', 'gravite']
+
+class MedicamentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Medicament
+        fields = ['id', 'code', 'nom', 'description', 'prix', 'disponibilite', 'voie_administration', 'duree_traitement']
+
+class MedicamentOrdonnanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MedicamentOrdonnance
+        fields = ['id', 'ordonnance', 'medicament', 'posologie']
