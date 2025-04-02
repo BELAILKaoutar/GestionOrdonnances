@@ -51,3 +51,5 @@ class MedicamentOrdonnanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = MedicamentOrdonnance
         fields = ['id', 'ordonnance', 'medicament', 'posologie']
+
+       
