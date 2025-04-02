@@ -123,14 +123,13 @@ class Allergie(models.Model):
     gravite=models.CharField(max_length=100,choices=[('Légère','Légère'),('modérée','modérée'),('sévère','sévère')]) 
     symptomes=models.TextField()
     traitement=models.TextField()
-    #dossierMedicale=models.ManyToManyField("DossierMedicale", blank=True, related_name="allergies")
     def __str__(self):
         return f"{self.nom} ({self.type}) - Gravité: {self.gravite}" 
 
    
 class Ordonnance(models.Model):
     code = models.CharField(max_length=255, unique=True)
-    dossierMedicale = models.ForeignKey("DossierMedicale", on_delete=models.CASCADE, related_name="ordonnances")
+    dossierMedicale = models.ForeignKey("gestionOrdonnancesapp.DossierMedicale", on_delete=models.CASCADE, related_name="ordonnances")
 
 class DossierMedicale(models.Model):
     code=models.CharField(max_length=255, unique=True)
@@ -139,7 +138,6 @@ class DossierMedicale(models.Model):
     tension=models.CharField(max_length=255)
     allergies=models.ManyToManyField(Allergie, blank=True, related_name="dossiers_medicaux")
     maladieChronique=models.TextField(blank=True, null=True)
-    #ordonnances = models.ForeignKey(Ordannance, related_name="dossier_medical")
     antecedentsChirurgicaux=models.TextField(blank=True, null=True)
     contactUrgence=models.CharField(max_length=255, blank=True, null=True)
     creation=models.DateTimeField(auto_now_add=True)
@@ -198,8 +196,8 @@ class MedicamentOrdonnance(models.Model):
     posologie = models.TextField()  # Ex: "2 comprimés par jour pendant 5 jours"
 
     def __str__(self):
-        return f"{self.medicament.nom} (Ordonnance {self.ordonnance.code})"    
-    
+        return f"{self.medicament.nom} (Ordonnance {self.ordonnance.code})"
+
 
 
 
