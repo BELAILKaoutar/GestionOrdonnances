@@ -493,4 +493,4 @@ class MedicamentOrdonnanceView(APIView):
             serializer = MedicamentOrdonnanceSerializer(medicament_ordonnances, many=True)
             # Retourner tous les objets avec le code 200
             return Response({'medicament_ordonnances': serializer.data}, status=status.HTTP_200_OK)
->>>>>>> b56f73f0ba355e0eb0ac38c9d91835f734015707
+
