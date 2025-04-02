@@ -40,7 +40,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'gestionOrdonnancesapp',
     'rest_framework',
-    'rest_framework_simplejwt',
     'corsheaders',
     'rest_framework.authtoken',
     'rest_framework_simplejwt',  # Ajoute cette ligne
