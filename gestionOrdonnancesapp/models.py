@@ -6,9 +6,13 @@ import qrcode
 from io import BytesIO
 from django.core.files.base import ContentFile
 import logging
-
+from django.forms.models import model_to_dict
+from django.core.files.base import ContentFile
 logger = logging.getLogger(__name__)
-
+from datetime import datetime
+import json
+import os
+from django.core.files import File
 class Role(models.Model):
     ROLE_CHOICES = [
         ("M", "Médecin"),
@@ -65,53 +69,114 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     objects = UserManager()
 
-    def generate_qr_code(self):
-        """Génère un QR code contenant les infos du patient, son dossier médical et ses ordonnances."""
-        if self.role.role == "P":
-            data = {
-                "CIN": self.cin,
-                "Nom": self.firstName,
-                "Prénom": self.lastName,
-                "Âge": self.age,
-                "Adresse": self.address,
+
+    def generate_qr_code(self, force=False):
+        """Génère un QR code avec encodage correct des caractères spéciaux"""
+        if self.role.role != "P":
+            return
+            
+        if not force and self.qr_code:
+            return
+        
+        # Delete old QR if exists
+        if self.qr_code:
+            try:
+                os.remove(self.qr_code.path)
+            except:
+                pass
+        
+        # Base patient information
+        data = {
+            "CIN": self.cin,
+            "Nom": self.lastName,
+            "Prénom": self.firstName,
+            "Âge": self.age,
+            "Adresse": self.address,
+            "Email": self.email,
+        }
+
+        try:
+            dossier = self.dossier_medical
+            dossier_data = {
+                "Groupe sanguin": dossier.bloodType,
+                "Tension": dossier.tension,
+                "Maladies chroniques": dossier.maladieChronique,
+                "Antécédents chirurgicaux": dossier.antecedentsChirurgicaux,
+                "Contact urgence": dossier.contactUrgence,
             }
 
-            # Ajouter les infos du dossier médical si elles existent
-            if hasattr(self, 'dossier_medical'):
-                dossier = self.dossier_medical
-                data.update({
-                    "Groupe Sanguin": dossier.bloodType,
-                    "Tension": dossier.tension,
-                    "Maladies Chroniques": dossier.maladieChronique,
-                    "Antécédents Chirurgicaux": dossier.antecedentsChirurgicaux,
-                    "Contact Urgence": dossier.contactUrgence,
-                })
+            # Add allergies
+            allergies = dossier.allergies.all()
+            dossier_data["Allergies"] = [
+                {
+                    "Nom": a.nom,
+                    "Type": a.type,
+                    "Gravité": a.gravite,
+                    "Symptômes": a.symptomes,
+                    "Traitement": a.traitement
+                } for a in allergies
+            ]
 
-                # Ajouter les ordonnances
-                ordonnances = dossier.ordonnances.all()
-                data["Ordonnances"] = [{"Médicament": o.medicine_name, "Dosage": o.dosage} for o in ordonnances]
+            # Add prescriptions
+            ordonnances = dossier.ordonnances.all()
+            prescriptions = []
+            for ordonnance in ordonnances:
+                ord_data = {
+                    "Code ordonnance": ordonnance.code,
+                    "Médicaments": []
+                }
+                
+                medicaments = ordonnance.medicaments_prescrits.all()
+                for med in medicaments:
+                    med_data = {
+                        "Nom": med.medicament.nom,
+                        "Description": med.medicament.description,
+                        "Posologie": med.posologie,
+                        "Voie administration": med.medicament.voie_administration
+                    }
+                    ord_data["Médicaments"].append(med_data)
+                
+                prescriptions.append(ord_data)
 
-            # Générer le QR code
-            qr = qrcode.QRCode(version=1, box_size=10, border=5)
-            qr.add_data(str(data))
-            qr.make(fit=True)
+            dossier_data["Ordonnances"] = prescriptions
+            data["Dossier Médical"] = dossier_data
 
-            img = qr.make_image(fill="black", back_color="white")
+        except DossierMedicale.DoesNotExist:
+            data["Dossier Médical"] = "Aucun dossier médical trouvé"
+        except Exception as e:
+            logger.error(f"Error generating QR code data: {str(e)}")
+            data["Dossier Médical"] = "Erreur lors de la récupération du dossier"
 
-            # Sauvegarde dans l'image
-            buffer = BytesIO()
-            img.save(buffer, format="PNG")
-            self.qr_code.save(f"qr_{self.cin}.png", ContentFile(buffer.getvalue()), save=False)
+        # Convert to JSON with proper encoding
+        json_data = json.dumps(data, ensure_ascii=False, indent=2)
+        
+        # Generate QR code
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(json_data)
+        qr.make(fit=True)
 
+        img = qr.make_image(fill="black", back_color="white")
+
+        # Save image
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        filename = f"qr_{self.cin}_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"
+        
+        # Properly save the file
+        self.qr_code.save(
+            filename,
+            ContentFile(buffer.getvalue()),
+            save=False
+        )
     def save(self, *args, **kwargs):
         """Hacher le mot de passe et générer un QR code avant la sauvegarde."""
-        if not self.password.startswith("pbkdf2_sha256$"):  # Vérifie si le mot de passe est déjà haché
+        if not self.password.startswith("pbkdf2_sha256$"):
             self.password = make_password(self.password)
-
-        if self.role.role == "P":  # Vérifier si c'est un patient
-            self.generate_qr_code()
-
-        super().save(*args, **kwargs)
+        
+        super().save(*args, **kwargs)  # Save first to ensure we have an ID
+        
+        if self.role.role == "P":
+            self.generate_qr_code(force=True)  # Force regeneration after save
 
 
 BloodTypes=[("A+","A+"),("A-","A-"),("B+","B+"),("B-","B-"),("O+","O+"),("O-","O-"),("AB+","AB+"),("AB-","AB-")]
