@@ -39,6 +39,8 @@ class LoginViews(APIView):
              'email' : request.data.get('email'),
              'age' : request.data.get('age'),
              'address' : request.data.get('address'),
+             'role_id': request.data.get('role_id'), # added the missing role_id 
+             'password': make_password(request.data.get('password')) # add the password 
             }, 
             email=email
         ) 
@@ -80,6 +82,8 @@ class LoginViews(APIView):
                 'email' : request.data.get('email'),
                 'age' : request.data.get('age'),
                 'address' : request.data.get('address'),
+                'role_id' : request.data.get('role_id'), # added the missing role_id 
+                'password': make_password(request.data.get('password')) # add the password
                 }, 
                 email=email
             ) 
